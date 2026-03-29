@@ -1,0 +1,19 @@
+services:
+  feedforge:
+    build: .
+    container_name: mfg-feedforge
+    ports:
+      - "8435:8435"
+    volumes:
+      - feedforge-data:/app/data
+    environment:
+      - PORT=8435
+      - CHECK_INTERVAL_DEFAULT=15
+      - MAX_FEEDS_FREE=50
+      - BASE_URL=http://localhost:8435
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 512m
+
+volumes:
+  feedforge-data:
