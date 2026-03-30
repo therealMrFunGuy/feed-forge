@@ -5,10 +5,12 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, HttpUrl, Field
+
+from auth_client import require_auth
 
 from db import (
     init_db,
@@ -30,6 +32,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("feedforge.server")
 
+AUTH_SERVICE_URL = os.environ.get("AUTH_SERVICE_URL", "http://localhost:8499")
 MAX_FEEDS = int(os.getenv("MAX_FEEDS_FREE", "50"))
 DEFAULT_INTERVAL = int(os.getenv("CHECK_INTERVAL_DEFAULT", "15"))
 PORT = int(os.getenv("PORT", "8435"))
@@ -429,7 +432,7 @@ async def root():
 
 
 @app.post("/feeds", status_code=201)
-async def create_feed_endpoint(req: CreateFeedRequest):
+async def create_feed_endpoint(req: CreateFeedRequest, auth: dict = Depends(require_auth)):
     if count_feeds() >= MAX_FEEDS:
         raise HTTPException(status_code=429, detail=f"Maximum {MAX_FEEDS} feeds allowed")
 
@@ -455,13 +458,13 @@ async def create_feed_endpoint(req: CreateFeedRequest):
 
 
 @app.get("/feeds")
-async def list_feeds_endpoint():
+async def list_feeds_endpoint(auth: dict = Depends(require_auth)):
     feeds = list_feeds()
     return {"feeds": feeds, "total": len(feeds), "max": MAX_FEEDS}
 
 
 @app.get("/feeds/{feed_id}")
-async def get_feed_endpoint(feed_id: str):
+async def get_feed_endpoint(feed_id: str, auth: dict = Depends(require_auth)):
     feed = get_feed(feed_id)
     if not feed:
         raise HTTPException(status_code=404, detail="Feed not found")
@@ -477,7 +480,7 @@ async def get_feed_endpoint(feed_id: str):
 
 
 @app.get("/feeds/{feed_id}/rss")
-async def get_rss(feed_id: str):
+async def get_rss(feed_id: str, auth: dict = Depends(require_auth)):
     xml = generate_rss(feed_id, base_url=BASE_URL)
     if not xml:
         raise HTTPException(status_code=404, detail="Feed not found")
@@ -485,7 +488,7 @@ async def get_rss(feed_id: str):
 
 
 @app.get("/feeds/{feed_id}/atom")
-async def get_atom(feed_id: str):
+async def get_atom(feed_id: str, auth: dict = Depends(require_auth)):
     xml = generate_atom(feed_id, base_url=BASE_URL)
     if not xml:
         raise HTTPException(status_code=404, detail="Feed not found")
@@ -493,7 +496,7 @@ async def get_atom(feed_id: str):
 
 
 @app.get("/feeds/{feed_id}/json")
-async def get_json_feed(feed_id: str):
+async def get_json_feed(feed_id: str, auth: dict = Depends(require_auth)):
     data = generate_json_feed(feed_id, base_url=BASE_URL)
     if not data:
         raise HTTPException(status_code=404, detail="Feed not found")
@@ -501,14 +504,14 @@ async def get_json_feed(feed_id: str):
 
 
 @app.delete("/feeds/{feed_id}")
-async def delete_feed_endpoint(feed_id: str):
+async def delete_feed_endpoint(feed_id: str, auth: dict = Depends(require_auth)):
     if not delete_feed(feed_id):
         raise HTTPException(status_code=404, detail="Feed not found")
     return {"deleted": True, "feed_id": feed_id}
 
 
 @app.post("/feeds/{feed_id}/check")
-async def check_feed_endpoint(feed_id: str):
+async def check_feed_endpoint(feed_id: str, auth: dict = Depends(require_auth)):
     feed = get_feed(feed_id)
     if not feed:
         raise HTTPException(status_code=404, detail="Feed not found")
@@ -517,7 +520,7 @@ async def check_feed_endpoint(feed_id: str):
 
 
 @app.get("/feeds/{feed_id}/diff")
-async def get_diff(feed_id: str):
+async def get_diff(feed_id: str, auth: dict = Depends(require_auth)):
     feed = get_feed(feed_id)
     if not feed:
         raise HTTPException(status_code=404, detail="Feed not found")
