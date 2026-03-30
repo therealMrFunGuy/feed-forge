@@ -36,11 +36,17 @@ async def validate_key(api_key: str) -> dict:
 
 
 async def require_auth(request: Request) -> dict:
-    """FastAPI dependency — extracts and validates API key from request."""
+    """FastAPI dependency — extracts and validates API key from request.
+
+    No anonymous access allowed. Users must sign up at auth.rjctdlabs.xyz
+    and provide an API key via X-API-Key header or Authorization: Bearer <key>.
+    """
     api_key = request.headers.get("X-API-Key") or request.headers.get("Authorization", "").replace("Bearer ", "")
     if not api_key:
-        # Allow unauthenticated requests with free tier limits
-        return {"valid": True, "tier": "free", "user_id": "anonymous"}
+        raise HTTPException(
+            401,
+            detail="API key required. Sign up at https://auth.rjctdlabs.xyz to get your free API key.",
+        )
 
     result = await validate_key(api_key)
     if not result.get("valid"):
