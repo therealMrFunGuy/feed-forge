@@ -1,0 +1,3 @@
+[console_scripts]
+feedforge-api = server:app
+feedforge-mcp = mcp_server:main
